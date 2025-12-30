@@ -369,8 +369,9 @@ export function VibeTradePanel() {
       // 자산 패널/보유량 갱신
       queryClient.invalidateQueries({ queryKey: ["portfolio"] });
     },
-    onError: (error: any) => {
-      toast.error(error?.message ?? "거래 중 오류가 발생했습니다.");
+    onError: (error: Error | unknown) => {
+      const errorMessage = error instanceof Error ? error.message : "거래 중 오류가 발생했습니다.";
+      toast.error(errorMessage);
     },
   });
 

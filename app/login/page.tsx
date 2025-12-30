@@ -46,8 +46,9 @@ export default function LoginPage() {
       // 로그인 성공 시 메인 페이지로 이동
       router.push("/");
     } catch (err) {
-      console.error(err);
-      setError("로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      console.error("로그인 오류:", err);
+      const errorMessage = err instanceof Error ? err.message : "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

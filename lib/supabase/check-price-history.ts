@@ -26,11 +26,12 @@ export async function checkPriceHistoryTable() {
       exists: true,
       data,
     };
-  } catch (err: any) {
+  } catch (err) {
     console.error("❌ price_history 테이블 확인 중 예외:", err);
+    const errorMessage = err instanceof Error ? err.message : "알 수 없는 오류";
     return {
       exists: false,
-      error: err?.message ?? "알 수 없는 오류",
+      error: errorMessage,
       suggestion: "supabase/price_history_table.sql 파일을 Supabase SQL Editor에서 실행하세요.",
     };
   }

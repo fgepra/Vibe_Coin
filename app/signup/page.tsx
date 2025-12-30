@@ -111,9 +111,10 @@ export default function SignUpPage() {
           router.push("/login");
         }, 2000);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("회원가입 오류:", err);
-      setError("회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      const errorMessage = err instanceof Error ? err.message : "회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

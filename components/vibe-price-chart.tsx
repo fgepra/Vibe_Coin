@@ -312,7 +312,7 @@ export function VibePriceChart({ initialData }: Props) {
                     minute: "2-digit",
                     second: "2-digit",
                   });
-                } catch (e) {
+                } catch (e: unknown) {
                   // 파싱 실패 시 원본 label 사용
                   timeLabel = label ?? "";
                 }
