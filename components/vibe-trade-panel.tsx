@@ -11,7 +11,15 @@ type TradeType = "buy" | "sell";
 
 // 가격 변동 계산 함수 (재사용 가능)
 function calculateNewPrice(currentPrice: number): number {
-  // 현재 가격의 ±5% 범위 내에서 랜덤하게 변동
+  // 0.1% 확률로 +1,000원 보너스
+  const random = Math.random();
+  if (random < 0.001) {
+    // 0.1% 확률
+    const bonusPrice = currentPrice + 1000;
+    return Math.max(100, Math.round(bonusPrice)); // 최소 100원 보장
+  }
+
+  // 일반적인 가격 변동: 현재 가격의 ±5% 범위 내에서 랜덤하게 변동
   const priceChangePercent = (Math.random() - 0.5) * 10; // -5% ~ +5%
   const priceChange = currentPrice * (priceChangePercent / 100);
   let newPrice = Math.max(100, currentPrice + priceChange); // 최소 100원 보장
