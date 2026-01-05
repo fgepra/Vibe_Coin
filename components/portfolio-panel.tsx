@@ -43,7 +43,7 @@ async function fetchPortfolio(): Promise<PortfolioData> {
 
   const balance = Number(profile?.balance ?? 0);
   const vibeQuantity = Number(holding?.quantity ?? 0);
-  const vibePrice = Number(coin?.current_price ?? 0);
+  const vibePrice = Math.round(Number(coin?.current_price ?? 0));
 
   return { balance, vibeQuantity, vibePrice };
 }

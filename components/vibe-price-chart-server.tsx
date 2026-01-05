@@ -47,18 +47,19 @@ export async function VibePriceChartServer() {
     const existing = bucketMap.get(bucketTs);
     if (!existing || rawTs > existing.timestamp) {
       bucketMap.set(bucketTs, {
-        price: Number(item.price),
+        price: Math.round(Number(item.price)),
         createdAt,
         timestamp: rawTs,
       });
     }
   }
 
-  // 버킷을 타임스탬프 순으로 정렬하여 배열로 변환
+  // 버킷을 타임스탬프 순으로 정렬하여 배열로 변환 (유효한 데이터만)
   const initialData = Array.from(bucketMap.entries())
     .sort((a, b) => a[0] - b[0])
     .map(([bucketTs, item]) => {
       const date = new Date(bucketTs);
+      const price = Number(item.price);
       return {
         time: date.toLocaleTimeString("ko-KR", {
           hour: "2-digit",
@@ -66,10 +67,11 @@ export async function VibePriceChartServer() {
           second: "2-digit",
         }),
         timestamp: bucketTs,
-        price: item.price,
+        price: isFinite(price) ? price : 0,
         createdAt: item.createdAt,
       };
-    });
+    })
+    .filter((item) => item.price > 0 && !isNaN(item.timestamp)); // 유효한 데이터만 필터링
 
   console.log("📊 초기 차트 데이터:", {
     개수: initialData.length,

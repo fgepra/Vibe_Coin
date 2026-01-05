@@ -24,7 +24,7 @@ async function fetchRankings(): Promise<RankingData[]> {
     return [];
   }
 
-  const vibePrice = Number(coin.current_price ?? 0);
+  const vibePrice = Math.round(Number(coin.current_price ?? 0));
   const initialCapital = 10_000_000;
 
   // holdings를 user_id별로 매핑 (성능 최적화)

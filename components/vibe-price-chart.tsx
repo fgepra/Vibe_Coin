@@ -105,7 +105,7 @@ export function VibePriceChart({ initialData }: Props) {
         (payload) => {
           console.log("📊 [price_history INSERT] Realtime 이벤트 수신:", payload);
           const row = payload.new as { price?: number; created_at?: string };
-          const price = Number(row.price ?? NaN);
+          const price = Math.round(Number(row.price ?? NaN));
           const createdAt = row.created_at;
 
           console.log("📊 파싱된 데이터:", { price, createdAt });
@@ -166,9 +166,9 @@ export function VibePriceChart({ initialData }: Props) {
         },
         (payload) => {
           console.log("📊 [coins UPDATE] Realtime 이벤트 수신:", payload);
-          const newPrice = Number(
+          const newPrice = Math.round(Number(
             (payload.new as { current_price?: number }).current_price ?? NaN
-          );
+          ));
           if (!Number.isFinite(newPrice)) {
             console.warn("⚠️ 유효하지 않은 가격:", newPrice);
             return;
@@ -228,7 +228,57 @@ export function VibePriceChart({ initialData }: Props) {
     };
   }, []);
 
-  if (!data || data.length === 0) {
+  // 데이터 검증 및 색상 계산을 메모이제이션
+  const { strokeColor, validData } = useMemo(() => {
+    // 유효한 데이터만 필터링 (타임스탬프와 가격이 유효한 것만)
+    const filtered = data.filter(
+      (point) =>
+        point &&
+        typeof point.timestamp === "number" &&
+        !isNaN(point.timestamp) &&
+        isFinite(point.timestamp) &&
+        point.timestamp > 0 &&
+        typeof point.price === "number" &&
+        !isNaN(point.price) &&
+        isFinite(point.price) &&
+        point.price > 0
+    );
+
+    if (filtered.length === 0) {
+      return { strokeColor: "#22c55e", validData: [] };
+    }
+
+    // 타임스탬프 기준으로 다시 정렬 (중복 제거)
+    const sorted = [...filtered].sort((a, b) => a.timestamp - b.timestamp);
+    
+    // 같은 타임스탬프가 있으면 가장 최신 가격만 유지
+    const uniqueData: PricePoint[] = [];
+    const seenTimestamps = new Set<number>();
+    
+    // 역순으로 순회하여 같은 타임스탬프 중 가장 최신 것만 유지
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      const point = sorted[i];
+      if (!seenTimestamps.has(point.timestamp)) {
+        seenTimestamps.add(point.timestamp);
+        uniqueData.unshift(point); // 앞에 추가하여 순서 유지
+      }
+    }
+
+    if (uniqueData.length === 0) {
+      return { strokeColor: "#22c55e", validData: [] };
+    }
+
+    const first = uniqueData[0]?.price ?? 0;
+    const last = uniqueData[uniqueData.length - 1]?.price ?? 0;
+    const isUp = last >= first;
+    return {
+      strokeColor: isUp ? "#22c55e" : "#ef4444",
+      validData: uniqueData,
+    };
+  }, [data]);
+
+  // 유효한 데이터가 없으면 표시
+  if (!validData || validData.length === 0) {
     return (
       <div className="h-64 bg-gray-900 rounded-lg flex items-center justify-center">
         <p className="text-gray-500 text-sm">가격 데이터가 없습니다.</p>
@@ -236,19 +286,30 @@ export function VibePriceChart({ initialData }: Props) {
     );
   }
 
-  // 색상 계산을 메모이제이션하여 불필요한 리렌더링 방지
-  const { strokeColor } = useMemo(() => {
-    const first = data[0]?.price ?? 0;
-    const last = data[data.length - 1]?.price ?? 0;
-    const isUp = last >= first;
-    return { strokeColor: isUp ? "#22c55e" : "#ef4444" };
-  }, [data]);
+  // 도메인 계산 (데이터가 하나일 때도 처리)
+  const timestamps = validData.map((d) => d.timestamp).filter((ts) => isFinite(ts) && !isNaN(ts));
+  const prices = validData.map((d) => d.price).filter((p) => isFinite(p) && !isNaN(p) && p > 0);
+  
+  if (timestamps.length === 0 || prices.length === 0) {
+    return (
+      <div className="h-64 bg-gray-900 rounded-lg flex items-center justify-center">
+        <p className="text-gray-500 text-sm">가격 데이터가 없습니다.</p>
+      </div>
+    );
+  }
+
+  const minTimestamp = Math.min(...timestamps);
+  const maxTimestamp = Math.max(...timestamps);
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const priceRange = maxPrice - minPrice;
+  const pricePadding = priceRange > 0 ? priceRange * 0.1 : Math.max(maxPrice * 0.1, 50); // 10% 패딩, 최소 50
 
   return (
     <div className="h-64 bg-gray-900 rounded-lg p-4">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart 
-          data={data}
+        <LineChart
+          data={validData}
           margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
         >
           <defs>
@@ -261,20 +322,25 @@ export function VibePriceChart({ initialData }: Props) {
           <XAxis
             dataKey="timestamp"
             type="number"
-            scale="time"
-            domain={["dataMin", "dataMax"]}
+            scale="linear"
+            domain={[minTimestamp, maxTimestamp]}
             tick={{ fill: "#9ca3af", fontSize: 10 }}
             tickLine={false}
             axisLine={{ stroke: "#4b5563" }}
             minTickGap={16}
             allowDataOverflow={false}
             tickFormatter={(value: number) => {
-              const date = new Date(value);
-              return date.toLocaleTimeString("ko-KR", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              });
+              try {
+                const date = new Date(value);
+                if (isNaN(date.getTime())) return "";
+                return date.toLocaleTimeString("ko-KR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                });
+              } catch {
+                return "";
+              }
             }}
           />
           <YAxis
@@ -282,8 +348,19 @@ export function VibePriceChart({ initialData }: Props) {
             tickLine={false}
             axisLine={{ stroke: "#4b5563" }}
             width={60}
-            domain={["auto", "auto"]}
+            domain={[
+              Math.max(0, Math.floor((minPrice - pricePadding) * 100) / 100),
+              Math.ceil((maxPrice + pricePadding) * 100) / 100
+            ]}
             allowDataOverflow={false}
+            tickFormatter={(value: number) => {
+              if (typeof value !== "number" || !isFinite(value) || isNaN(value)) {
+                return "";
+              }
+              // 소수점이 있으면 2자리, 없으면 정수로 표시
+              const rounded = Math.round(value * 100) / 100;
+              return rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(2);
+            }}
           />
           <Tooltip
             content={({
@@ -331,22 +408,21 @@ export function VibePriceChart({ initialData }: Props) {
                     {timeLabel}
                   </p>
                   <p style={{ color: "#e5e7eb", fontSize: 12, margin: 0 }}>
-                    가격: ₩{typeof price === "number" ? price.toLocaleString() : "-"}
+                    가격: ₩{typeof price === "number" ? Math.round(price).toLocaleString() : "-"}
                   </p>
                 </div>
               );
             }}
           />
           <Line
-            type="monotone"
+            type="linear"
             dataKey="price"
             stroke={strokeColor}
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, stroke: "#0b1120", strokeWidth: 2 }}
-            isAnimationActive={true}
-            animationDuration={300}
-            animationEasing="ease-out"
+            isAnimationActive={false}
+            connectNulls={false}
           />
         </LineChart>
       </ResponsiveContainer>

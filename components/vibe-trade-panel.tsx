@@ -15,7 +15,7 @@ function calculateNewPrice(currentPrice: number): number {
   const priceChangePercent = (Math.random() - 0.5) * 10; // -5% ~ +5%
   const priceChange = currentPrice * (priceChangePercent / 100);
   let newPrice = Math.max(100, currentPrice + priceChange); // 최소 100원 보장
-  newPrice = Math.round(newPrice * 100) / 100; // 소수점 2자리로 반올림
+  newPrice = Math.round(newPrice); // 정수로 반올림 (소수점 제거)
   return newPrice;
 }
 
@@ -23,16 +23,19 @@ function calculateNewPrice(currentPrice: number): number {
 async function updateCoinPrice(newPrice: number, coinId: string) {
   const supabase = createClient();
   
+  // 정수로 변환
+  const roundedPrice = Math.round(newPrice);
+  
   // 병렬로 coins 업데이트와 price_history 삽입 실행
   const [updateCoinResult, priceHistoryResult] = await Promise.all([
     supabase
       .from("coins")
-      .update({ current_price: newPrice })
+      .update({ current_price: roundedPrice })
       .eq("id", coinId),
     supabase
       .from("price_history")
       .insert({
-        price: newPrice,
+        price: roundedPrice,
       }),
   ]);
 
@@ -86,7 +89,7 @@ async function executeTrade(type: TradeType, quantity: number) {
     throw new Error("프로필 정보를 불러오지 못했습니다.");
   }
 
-  const price = Number(coin.current_price);
+  const price = Math.round(Number(coin.current_price));
   if (!Number.isFinite(price)) {
     throw new Error("유효하지 않은 코인 가격입니다.");
   }
@@ -283,7 +286,7 @@ export function VibeTradePanel() {
       .single();
 
     if (!error && data) {
-      setPrice(Number(data.current_price));
+      setPrice(Math.round(Number(data.current_price)));
     }
   };
 
@@ -309,7 +312,7 @@ export function VibeTradePanel() {
           );
           if (Number.isFinite(newPrice)) {
             console.log("💰 거래 패널 가격 업데이트:", newPrice);
-            setPrice(newPrice);
+            setPrice(Math.round(newPrice));
           }
         }
       )
@@ -325,7 +328,7 @@ export function VibeTradePanel() {
         .single();
 
       if (!coinError && coinData) {
-        const currentPrice = Number(coinData.current_price);
+        const currentPrice = Math.round(Number(coinData.current_price));
         const newPrice = calculateNewPrice(currentPrice);
 
         console.log("📈 자동 가격 변동:", {
@@ -376,7 +379,7 @@ export function VibeTradePanel() {
   });
 
   const formattedPrice =
-    price != null ? `₩${price.toLocaleString()}` : "가격 불러오는 중...";
+    price != null ? `₩${Math.round(price).toLocaleString()}` : "가격 불러오는 중...";
 
   return (
     <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
