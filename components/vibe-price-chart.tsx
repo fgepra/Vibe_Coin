@@ -25,10 +25,22 @@ type Props = {
 
 const MAX_POINTS = 100;
 const BUCKET_MS = 5000; // 5초 단위 버킷
+const ONE_HOUR_MS = 60 * 60 * 1000; // 1시간 (밀리초)
 
 // 타임스탬프를 5초 단위 버킷으로 정규화
 function snapToBucket(timestamp: number): number {
   return Math.floor(timestamp / BUCKET_MS) * BUCKET_MS;
+}
+
+// 최근 1시간 이내 데이터만 필터링하는 함수
+function filterLastHour(points: PricePoint[]): PricePoint[] {
+  const now = Date.now();
+  const oneHourAgo = now - ONE_HOUR_MS;
+  
+  return points.filter((point) => {
+    const ts = point.timestamp ?? (point.createdAt ? new Date(point.createdAt).getTime() : 0);
+    return ts >= oneHourAgo;
+  });
 }
 
 // 데이터 배열을 5초 버킷 기준으로 정규화하는 함수
@@ -70,9 +82,12 @@ function normalizeData(points: PricePoint[]): PricePoint[] {
   }
 
   // 버킷을 타임스탬프 순으로 정렬하여 배열로 변환
-  return Array.from(bucketMap.entries())
+  const result = Array.from(bucketMap.entries())
     .sort((a, b) => a[0] - b[0])
     .map(([_, point]) => point);
+  
+  // 최근 1시간 이내 데이터만 필터링
+  return filterLastHour(result);
 }
 
 export function VibePriceChart({ initialData }: Props) {
@@ -85,9 +100,11 @@ export function VibePriceChart({ initialData }: Props) {
       return;
     }
 
-    // normalizeData 함수를 사용하여 정규화
+    // normalizeData 함수를 사용하여 정규화 (이미 1시간 필터링 포함)
     const normalized = normalizeData(initialData);
-    setData(normalized);
+    // 추가로 1시간 필터링 적용 (이중 체크)
+    const filtered = filterLastHour(normalized);
+    setData(filtered);
   }, [initialData]);
 
   useEffect(() => {
@@ -136,19 +153,23 @@ export function VibePriceChart({ initialData }: Props) {
             // 새 포인트를 추가하고 전체 데이터를 다시 정규화
             const withNewPoint = [...prev, newPoint];
             const normalized = normalizeData(withNewPoint);
+            
+            // 최근 1시간 이내 데이터만 필터링
+            const filtered = filterLastHour(normalized);
 
             console.log("📊 차트 데이터 업데이트:", {
               이전_개수: prev.length,
               새_포인트: newPoint,
               정규화_후_개수: normalized.length,
+              필터링_후_개수: filtered.length,
             });
 
             // 오래된 데이터 제거 (성능 최적화)
-            if (normalized.length > MAX_POINTS) {
-              return normalized.slice(normalized.length - MAX_POINTS);
+            if (filtered.length > MAX_POINTS) {
+              return filtered.slice(filtered.length - MAX_POINTS);
             }
 
-            return normalized;
+            return filtered;
           });
         }
       )
@@ -196,19 +217,23 @@ export function VibePriceChart({ initialData }: Props) {
             // 새 포인트를 추가하고 전체 데이터를 다시 정규화
             const withNewPoint = [...prev, newPoint];
             const normalized = normalizeData(withNewPoint);
+            
+            // 최근 1시간 이내 데이터만 필터링
+            const filtered = filterLastHour(normalized);
 
             console.log("📊 [coins UPDATE] 차트 데이터 업데이트:", {
               이전_개수: prev.length,
               새_포인트: newPoint,
               정규화_후_개수: normalized.length,
+              필터링_후_개수: filtered.length,
             });
 
             // 오래된 데이터 제거 (성능 최적화)
-            if (normalized.length > MAX_POINTS) {
-              return normalized.slice(normalized.length - MAX_POINTS);
+            if (filtered.length > MAX_POINTS) {
+              return filtered.slice(filtered.length - MAX_POINTS);
             }
 
-            return normalized;
+            return filtered;
           });
         }
       )
@@ -229,10 +254,31 @@ export function VibePriceChart({ initialData }: Props) {
     };
   }, []);
 
+  // 주기적으로 1시간 이전 데이터 제거 (1분마다 체크)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setData((prev) => {
+        const filtered = filterLastHour(prev);
+        if (filtered.length !== prev.length) {
+          console.log("📊 1시간 이전 데이터 자동 제거:", {
+            이전_개수: prev.length,
+            필터링_후_개수: filtered.length,
+          });
+        }
+        return filtered;
+      });
+    }, 60000); // 1분마다 체크
+
+    return () => clearInterval(interval);
+  }, []);
+
   // 데이터 검증 및 색상 계산을 메모이제이션
   const { strokeColor, validData } = useMemo(() => {
+    // 먼저 최근 1시간 이내 데이터만 필터링
+    const lastHourData = filterLastHour(data);
+    
     // 유효한 데이터만 필터링 (타임스탬프와 가격이 유효한 것만)
-    const filtered = data.filter(
+    const filtered = lastHourData.filter(
       (point) =>
         point &&
         typeof point.timestamp === "number" &&
