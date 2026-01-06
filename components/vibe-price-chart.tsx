@@ -64,6 +64,7 @@ function normalizeData(points: PricePoint[]): PricePoint[] {
         ...point,
         timestamp: bucketTs,
         time: timeLabel,
+        price: Math.round(point.price), // 가격을 정수로 변환
       });
     }
   }
@@ -260,7 +261,11 @@ export function VibePriceChart({ initialData }: Props) {
       const point = sorted[i];
       if (!seenTimestamps.has(point.timestamp)) {
         seenTimestamps.add(point.timestamp);
-        uniqueData.unshift(point); // 앞에 추가하여 순서 유지
+        // 가격을 정수로 변환하여 저장
+        uniqueData.unshift({
+          ...point,
+          price: Math.round(point.price),
+        }); // 앞에 추가하여 순서 유지
       }
     }
 
@@ -303,7 +308,7 @@ export function VibePriceChart({ initialData }: Props) {
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
   const priceRange = maxPrice - minPrice;
-  const pricePadding = priceRange > 0 ? priceRange * 0.1 : Math.max(maxPrice * 0.1, 50); // 10% 패딩, 최소 50
+  const pricePadding = priceRange > 0 ? Math.ceil(priceRange * 0.1) : Math.max(Math.ceil(maxPrice * 0.1), 50); // 10% 패딩, 최소 50 (정수로)
 
   return (
     <div className="h-64 bg-gray-900 rounded-lg p-4">
@@ -349,17 +354,16 @@ export function VibePriceChart({ initialData }: Props) {
             axisLine={{ stroke: "#4b5563" }}
             width={60}
             domain={[
-              Math.max(0, Math.floor((minPrice - pricePadding) * 100) / 100),
-              Math.ceil((maxPrice + pricePadding) * 100) / 100
+              Math.max(0, Math.floor(minPrice - pricePadding)),
+              Math.ceil(maxPrice + pricePadding)
             ]}
             allowDataOverflow={false}
             tickFormatter={(value: number) => {
               if (typeof value !== "number" || !isFinite(value) || isNaN(value)) {
                 return "";
               }
-              // 소수점이 있으면 2자리, 없으면 정수로 표시
-              const rounded = Math.round(value * 100) / 100;
-              return rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(2);
+              // 정수로만 표시 (소수점 제거)
+              return Math.round(value).toString();
             }}
           />
           <Tooltip

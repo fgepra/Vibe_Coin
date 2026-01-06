@@ -44,6 +44,7 @@ async function updateCoinPrice(newPrice: number, coinId: string) {
       .from("price_history")
       .insert({
         price: roundedPrice,
+        created_at: new Date().toISOString(),
       }),
   ]);
 
