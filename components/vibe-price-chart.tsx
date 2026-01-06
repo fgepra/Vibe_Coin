@@ -121,15 +121,11 @@ export function VibePriceChart({ initialData }: Props) {
           table: "price_history",
         },
         (payload) => {
-          console.log("📊 [price_history INSERT] Realtime 이벤트 수신:", payload);
           const row = payload.new as { price?: number; created_at?: string };
           const price = Math.round(Number(row.price ?? NaN));
           const createdAt = row.created_at;
 
-          console.log("📊 파싱된 데이터:", { price, createdAt });
-
           if (!Number.isFinite(price) || !createdAt) {
-            console.warn("⚠️ 유효하지 않은 데이터:", { price, createdAt });
             return;
           }
 
@@ -157,13 +153,6 @@ export function VibePriceChart({ initialData }: Props) {
             // 최근 1시간 이내 데이터만 필터링
             const filtered = filterLastHour(normalized);
 
-            console.log("📊 차트 데이터 업데이트:", {
-              이전_개수: prev.length,
-              새_포인트: newPoint,
-              정규화_후_개수: normalized.length,
-              필터링_후_개수: filtered.length,
-            });
-
             // 오래된 데이터 제거 (성능 최적화)
             if (filtered.length > MAX_POINTS) {
               return filtered.slice(filtered.length - MAX_POINTS);
@@ -187,12 +176,10 @@ export function VibePriceChart({ initialData }: Props) {
           filter: "symbol=eq.VIBE",
         },
         (payload) => {
-          console.log("📊 [coins UPDATE] Realtime 이벤트 수신:", payload);
           const newPrice = Math.round(Number(
             (payload.new as { current_price?: number }).current_price ?? NaN
           ));
           if (!Number.isFinite(newPrice)) {
-            console.warn("⚠️ 유효하지 않은 가격:", newPrice);
             return;
           }
 
@@ -221,13 +208,6 @@ export function VibePriceChart({ initialData }: Props) {
             // 최근 1시간 이내 데이터만 필터링
             const filtered = filterLastHour(normalized);
 
-            console.log("📊 [coins UPDATE] 차트 데이터 업데이트:", {
-              이전_개수: prev.length,
-              새_포인트: newPoint,
-              정규화_후_개수: normalized.length,
-              필터링_후_개수: filtered.length,
-            });
-
             // 오래된 데이터 제거 (성능 최적화)
             if (filtered.length > MAX_POINTS) {
               return filtered.slice(filtered.length - MAX_POINTS);
@@ -237,18 +217,9 @@ export function VibePriceChart({ initialData }: Props) {
           });
         }
       )
-      .subscribe((status, err) => {
-        console.log("📊 [coins UPDATE] Realtime 구독 상태:", status);
-        if (err) {
-          console.error("❌ Realtime 구독 오류:", err);
-        }
-        if (status === "SUBSCRIBED") {
-          console.log("✅ Realtime 구독 성공! coins 테이블의 UPDATE 이벤트를 수신합니다.");
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log("📊 Realtime 구독 해제");
       supabase.removeChannel(channel1);
       supabase.removeChannel(channel2);
     };
@@ -260,10 +231,6 @@ export function VibePriceChart({ initialData }: Props) {
       setData((prev) => {
         const filtered = filterLastHour(prev);
         if (filtered.length !== prev.length) {
-          console.log("📊 1시간 이전 데이터 자동 제거:", {
-            이전_개수: prev.length,
-            필터링_후_개수: filtered.length,
-          });
         }
         return filtered;
       });
