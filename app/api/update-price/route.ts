@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 // 가격 변동 계산 함수
@@ -20,7 +20,23 @@ function calculateNewPrice(currentPrice: number): number {
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    // Cron Job은 인증이 없으므로 Service Role Key 사용 (RLS 우회)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: "Supabase 환경 변수가 설정되지 않았습니다." },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     // VIBE 코인 정보 조회
     const { data: coinData, error: coinError } = await supabase
