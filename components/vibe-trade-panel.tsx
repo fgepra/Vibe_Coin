@@ -327,8 +327,29 @@ export function VibeTradePanel() {
       )
       .subscribe();
 
+    // 주기적으로 코인 가격 자동 변동 (5초마다)
+    const autoUpdatePrice = async () => {
+      const supabase = createClient();
+      const { data: coinData, error: coinError } = await supabase
+        .from("coins")
+        .select("id, current_price")
+        .eq("symbol", "VIBE")
+        .single();
+
+      if (!coinError && coinData) {
+        const currentPrice = Math.round(Number(coinData.current_price));
+        const newPrice = calculateNewPrice(currentPrice);
+
+        await updateCoinPrice(newPrice, coinData.id);
+      }
+    };
+
+    // 5초마다 가격 변동
+    const intervalId = setInterval(autoUpdatePrice, 5000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(intervalId);
     };
   }, []);
 
