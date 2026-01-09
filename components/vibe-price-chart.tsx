@@ -432,13 +432,15 @@ export function VibePriceChart({ initialData }: Props) {
             }}
           />
           <Line
-            type="linear"
+            type="monotone"
             dataKey="price"
             stroke={strokeColor}
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, stroke: "#0b1120", strokeWidth: 2 }}
-            isAnimationActive={false}
+            isAnimationActive={true}
+            animationDuration={300}
+            animationEasing="ease-out"
             connectNulls={false}
           />
         </LineChart>
