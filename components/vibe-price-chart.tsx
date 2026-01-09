@@ -24,7 +24,7 @@ type Props = {
 };
 
 const MAX_POINTS = 100;
-const BUCKET_MS = 5000; // 5초 단위 버킷
+const BUCKET_MS = 3000; // 3초 단위 버킷
 const ONE_HOUR_MS = 60 * 60 * 1000; // 1시간 (밀리초)
 
 // 타임스탬프를 5초 단위 버킷으로 정규화
