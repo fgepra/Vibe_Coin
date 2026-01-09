@@ -36,7 +36,7 @@ export default async function Home() {
                 Vibe Coin
               </h1>
               <p className="text-slate-600 dark:text-slate-400 mt-1">
-                실시간 모의 투자 게임
+                실시간 모의 투자 사이트
               </p>
             </div>
             <MainHeader email={user?.email ?? null} />
